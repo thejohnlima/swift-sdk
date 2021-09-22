@@ -239,10 +239,6 @@ extension HtmlContentParser: ContentFromJsonParser {
             return .failure(reason: "no html")
         }
         
-        guard html.range(of: Const.href, options: [.caseInsensitive]) != nil else {
-            return .failure(reason: "No href tag found in in-app html payload \(html)")
-        }
-        
         let inAppDisplaySettings = json[JsonKey.InApp.inAppDisplaySettings] as? [AnyHashable: Any]
         let padding = getPadding(fromInAppSettings: inAppDisplaySettings)
         
