@@ -58,6 +58,8 @@ final class InternalIterableAPI: NSObject, PushTrackerProtocol, AuthProvider {
     var auth: Auth {
         Auth(userId: userId, email: email, authToken: authManager.getAuthToken())
     }
+
+    var dependencyContainer: DependencyContainerProtocol
     
     lazy var inAppManager: IterableInternalInAppManagerProtocol = {
         self.dependencyContainer.createInAppManager(config: self.config,
@@ -73,7 +75,10 @@ final class InternalIterableAPI: NSObject, PushTrackerProtocol, AuthProvider {
     // MARK: - SDK Functions
     
     @discardableResult func handleUniversalLink(_ url: URL) -> Bool {
-        let (result, future) = deepLinkManager.handleUniversalLink(url, urlDelegate: config.urlDelegate, urlOpener: AppUrlOpener())
+        let (result, future) = deepLinkManager.handleUniversalLink(url,
+                                                                   urlDelegate: config.urlDelegate,
+                                                                   urlOpener: AppUrlOpener(),
+                                                                   allowedProtocols: config.allowedProtocols)
         future.onSuccess { attributionInfo in
             if let attributionInfo = attributionInfo {
                 self.attributionInfo = attributionInfo
@@ -130,15 +135,14 @@ final class InternalIterableAPI: NSObject, PushTrackerProtocol, AuthProvider {
     
     // MARK: - API Request Calls
     
-    @discardableResult
     func register(token: Data,
                   onSuccess: OnSuccessHandler? = nil,
-                  onFailure: OnFailureHandler? = nil) -> Future<SendRequestValue, SendRequestError> {
+                  onFailure: OnFailureHandler? = nil) {
         guard let appName = pushIntegrationName else {
             let errorMessage = "Not registering device token - appName must not be nil"
             ITBError(errorMessage)
             onFailure?(errorMessage, nil)
-            return SendRequestError.createErroredFuture(reason: errorMessage)
+            return
         }
         
         hexToken = token.hexString()
@@ -149,10 +153,10 @@ final class InternalIterableAPI: NSObject, PushTrackerProtocol, AuthProvider {
                                                   deviceId: deviceId,
                                                   deviceAttributes: deviceAttributes,
                                                   sdkVersion: localStorage.sdkVersion)
-        return requestHandler.register(registerTokenInfo: registerTokenInfo,
-                                         notificationStateProvider: notificationStateProvider,
-                                         onSuccess: onSuccess,
-                                         onFailure: onFailure)
+        requestHandler.register(registerTokenInfo: registerTokenInfo,
+                                notificationStateProvider: notificationStateProvider,
+                                onSuccess: onSuccess,
+                                onFailure: onFailure)
     }
     
     @discardableResult
@@ -376,9 +380,8 @@ final class InternalIterableAPI: NSObject, PushTrackerProtocol, AuthProvider {
     private let inAppDisplayer: InAppDisplayerProtocol
     private var notificationStateProvider: NotificationStateProviderProtocol
     private var localStorage: LocalStorageProtocol
-    var networkSession: NetworkSessionProtocol
+    private var networkSession: NetworkSessionProtocol
     private var urlOpener: UrlOpenerProtocol
-    private var dependencyContainer: DependencyContainerProtocol
     
     private var deepLinkManager: IterableDeepLinkManager
     
@@ -546,6 +549,7 @@ final class InternalIterableAPI: NSObject, PushTrackerProtocol, AuthProvider {
                                                                                urlDelegate: config.urlDelegate,
                                                                                customActionDelegate: config.customActionDelegate,
                                                                                urlOpener: urlOpener,
+                                                                               allowedProtocols: config.allowedProtocols,
                                                                                inAppNotifiable: inAppManager)
         
         handle(launchOptions: launchOptions)
@@ -595,21 +599,6 @@ final class InternalIterableAPI: NSObject, PushTrackerProtocol, AuthProvider {
         }
     }
     
-    private func handleUrl(urlString: String, fromSource source: IterableActionSource) {
-        guard let action = IterableAction.actionOpenUrl(fromUrlString: urlString) else {
-            ITBError("Could not create action from: \(urlString)")
-            return
-        }
-        
-        let context = IterableActionContext(action: action, source: source)
-        DispatchQueue.main.async {
-            IterableActionRunner.execute(action: action,
-                                         context: context,
-                                         urlHandler: IterableUtil.urlHandler(fromUrlDelegate: self.config.urlDelegate, inContext: context),
-                                         urlOpener: self.urlOpener)
-        }
-    }
-    
     private func updateSDKVersion() {
         if let lastVersion = localStorage.sdkVersion, lastVersion != IterableAPI.sdkVersion {
             performUpgrade(lastVersion: lastVersion, newVersion: IterableAPI.sdkVersion)
@@ -620,7 +609,8 @@ final class InternalIterableAPI: NSObject, PushTrackerProtocol, AuthProvider {
     
     private func performUpgrade(lastVersion _: String, newVersion: String) {
         // do upgrade things here
-        // ....
+        localStorage.upgrade()
+        
         // then set new version
         localStorage.sdkVersion = newVersion
     }

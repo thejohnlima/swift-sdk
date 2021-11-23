@@ -8,7 +8,7 @@ import UIKit
 @objcMembers
 public final class IterableAPI: NSObject {
     /// The current SDK version
-    public static let sdkVersion = "6.3.3"
+    public static let sdkVersion = "6.3.4"
     
     /// The email of the logged in user that this IterableAPI is using
     public static var email: String? {
@@ -642,6 +642,16 @@ public final class IterableAPI: NSObject {
     @objc(inAppConsume:location:source:)
     public static func inAppConsume(message: IterableInAppMessage, location: InAppLocation = .inApp, source: InAppDeleteSource) {
         internalImplementation?.inAppConsume(message: message, location: location, source: source)
+    }
+    
+    /// Tracks analytics data from a session of using an inbox UI
+    /// NOTE: this is not normally used publicly, but is needed for our React Native SDK implementation
+    ///
+    /// - Parameters:
+    ///     - inboxSession: the inbox session data type to track
+    @objc(trackInboxSession:)
+    public static func track(inboxSession: IterableInboxSession) {
+        internalImplementation?.track(inboxSession: inboxSession)
     }
     
     // MARK: - Private/Internal

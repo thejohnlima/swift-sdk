@@ -43,6 +43,7 @@ extension DependencyContainerProtocol {
                      urlDelegate: config.urlDelegate,
                      customActionDelegate: config.customActionDelegate,
                      urlOpener: urlOpener,
+                     allowedProtocols: config.allowedProtocols,
                      applicationStateProvider: applicationStateProvider,
                      notificationCenter: notificationCenter,
                      dateProvider: dateProvider,
@@ -147,7 +148,7 @@ struct DependencyContainer: DependencyContainerProtocol {
     let dateProvider: DateProviderProtocol = SystemDateProvider()
     let networkSession: NetworkSessionProtocol = URLSession(configuration: .default)
     let notificationStateProvider: NotificationStateProviderProtocol = SystemNotificationStateProvider()
-    let localStorage: LocalStorageProtocol = UserDefaultsLocalStorage()
+    let localStorage: LocalStorageProtocol = LocalStorage()
     let inAppDisplayer: InAppDisplayerProtocol = InAppDisplayer()
     let inAppPersister: InAppPersistenceProtocol = InAppFilePersister()
     let urlOpener: UrlOpenerProtocol = AppUrlOpener()
